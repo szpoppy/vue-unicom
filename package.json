@@ -1,8 +1,8 @@
 {
     "name": "vue-unicom",
-    "version": "2.1.1",
+    "version": "2.2.0",
     "description": "vue-unicom",
-    "main": "dist/index.js",
+    "main": "index.js",
     "scripts": {
         "build": "rm -rf ./dist && tsc"
     },
