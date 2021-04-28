@@ -5,6 +5,7 @@
  */
 
 import Vue, { VueConstructor } from "vue"
+import { App } from "vue3"
 
 interface unicomGather {
     [propName: string]: Unicom // 任意类型
@@ -58,7 +59,7 @@ function updateUnicomGroupByName(target: Unicom, newName: Array<string>, oldName
     // 某个unicom对象更新 name
     if (oldName) {
         // 移除所有旧的
-        oldName.forEach(function(name) {
+        oldName.forEach(function (name) {
             let unicoms = unicomGroupByName[name]
             if (unicoms) {
                 let index = unicoms.indexOf(target)
@@ -71,7 +72,7 @@ function updateUnicomGroupByName(target: Unicom, newName: Array<string>, oldName
 
     if (newName) {
         // 加入新的
-        newName.forEach(function(name) {
+        newName.forEach(function (name) {
             addUnicomGroupByNameOne(target, name)
         })
     }
@@ -138,7 +139,7 @@ function emitAll(self: any, type: string, target: string, instruct: string, args
         targetUnicom.push(...unicomGroup)
     }
     let uniEvent = new UnicomEvent(self, args)
-    targetUnicom.forEach(function(emit) {
+    targetUnicom.forEach(function (emit) {
         // 每个都触发一遍
         emit.emit(instruct, uniEvent, ...args)
     })
@@ -348,7 +349,7 @@ export class Unicom {
 
         // 以下是全局触发发布
         let type, target, instruct
-        instruct = query.replace(/([@#])([^@#]*)$/, function(s0, s1, s2) {
+        instruct = query.replace(/([@#])([^@#]*)$/, function (s0, s1, s2) {
             target = s2
             type = s1
             return ""
@@ -383,29 +384,39 @@ interface vueUnicomData {
     // 绑定的unicom对象
     unicom?: Unicom
 }
-interface vueVM extends Vue {
-    _unicom_data_: vueUnicomData
-}
-export function install(vue: VueConstructor, { name = "unicom", unicomName, unicomId, unicomEmit, unicomClass }: unicomInstallArg = {}) {
+export function install(V: VueConstructor | App, { name = "unicom", unicomName, unicomId, unicomEmit, unicomClass }: unicomInstallArg = {}) {
     if (unicomInstalled) {
         // 防止重复install
         return
     }
     unicomInstalled = true
 
-    // 添加原型方法
-    let unicomEmitName = unicomEmit || name
-    vue.prototype["$" + unicomEmitName] = function(query: string, ...args: any) {
+    function uniconExe(this: any, query: string, ...args: any) {
         return this._unicom_data_.unicom.emit(query, ...args)
     }
+
+    var is3 = V.version.indexOf("3") == 0
+    var destroyed = "destroyed"
+    // 添加原型方法
+    let unicomEmitName = unicomEmit || name
+    if (is3) {
+        destroyed = "unmounted"
+        var vA = V as App
+        vA.config.globalProperties["$" + unicomEmitName] = uniconExe
+    } else {
+        // 添加原型方法
+        var vV = V as VueConstructor
+        vV.prototype["$" + unicomEmitName] = uniconExe
+    }
+
     // 方便插件中引入
     let VueUnicomClassName = unicomClass
     if (!VueUnicomClassName) {
-        VueUnicomClassName = name.replace(/^\w/, function(s0) {
+        VueUnicomClassName = name.replace(/^\w/, function (s0) {
             return s0.toUpperCase()
         })
     }
-    vue[VueUnicomClassName] = Unicom
+    V[VueUnicomClassName] = Unicom
 
     // unicom-id
     let unicomIdName = unicomId || name + "Id"
@@ -413,14 +424,14 @@ export function install(vue: VueConstructor, { name = "unicom", unicomName, unic
     let unicomGroupName = unicomName || name + "Name"
 
     // 组合分组
-    function getGroup(target: vueVM) {
+    function getGroup(target: any) {
         let unicomData = target._unicom_data_
         let names = target[unicomGroupName] || []
         return unicomData.initGroup.concat(names)
     }
 
     // 全局混入 vue
-    vue.mixin({
+    V.mixin({
         props: {
             // 命名
             [unicomIdName]: {
@@ -435,14 +446,14 @@ export function install(vue: VueConstructor, { name = "unicom", unicomName, unic
         },
         watch: {
             [unicomIdName](nv) {
-                let self = this as vueVM
+                let self = this as any
                 let unicom = self._unicom_data_ && self._unicom_data_.unicom
                 if (unicom) {
                     unicom.setId(nv)
                 }
             },
             [unicomGroupName]() {
-                let self = this as vueVM
+                let self = this as any
                 let unicom = self._unicom_data_ && self._unicom_data_.unicom
                 if (unicom) {
                     unicom.setGroup(getGroup(self))
@@ -451,9 +462,9 @@ export function install(vue: VueConstructor, { name = "unicom", unicomName, unic
         },
         // 创建的时候，加入事件机制
         beforeCreate() {
-            let self = this as vueVM
+            let self = this as any
             // 屏蔽不需要融合的 节点
-            let isIgnore = !self.$vnode || /-transition$/.test(self.$vnode.tag)
+            let isIgnore = !is3 && (!self.$vnode || /-transition$/.test(self.$vnode.tag))
             // unicomData 数据存放
             let unicomData: vueUnicomData = {
                 // 不需要，忽略
@@ -472,7 +483,7 @@ export function install(vue: VueConstructor, { name = "unicom", unicomName, unic
             // unicomData.self = new Unicom({target: this})
         },
         created() {
-            let self = this as vueVM
+            let self = this as any
             let unicomData = self._unicom_data_
             if (unicomData.isIgnore) {
                 // 忽略
@@ -483,15 +494,15 @@ export function install(vue: VueConstructor, { name = "unicom", unicomName, unic
             let unicom = (unicomData.unicom = new Unicom({ target: self, id: self[unicomIdName], group: getGroup(self) }))
 
             // 订阅事件
-            unicomData.instructs.forEach(function(subs) {
+            unicomData.instructs.forEach(function (subs) {
                 for (let n in subs) {
                     unicom.on(n, subs[n])
                 }
             })
         },
         // 全局混合， 销毁实例的时候，销毁事件
-        destroyed() {
-            let self = this as vueVM
+        [destroyed]() {
+            // let self = this as any
             let unicomData = this._unicom_data_
             if (unicomData.isIgnore) {
                 // 忽略
@@ -503,15 +514,15 @@ export function install(vue: VueConstructor, { name = "unicom", unicomName, unic
     })
 
     // 自定义属性合并策略
-    let merge = vue.config.optionMergeStrategies
-    merge[name] = function(parentVal, childVal) {
+    let merge = V.config.optionMergeStrategies
+    merge[name] = function (parentVal, childVal) {
         let arr = parentVal || []
         if (childVal) {
             arr.push(childVal)
         }
         return arr
     }
-    merge[unicomGroupName] = function(parentVal, childVal) {
+    merge[unicomGroupName] = function (parentVal, childVal) {
         let arr = parentVal || []
         if (childVal) {
             if (typeof childVal == "string") {

@@ -4,14 +4,13 @@
  * 目的，提供vue 全局的转发机制
  * [2019-07-21] 重构,以事件模型为基础,多组件之间 订阅者和发布者来制作
  */
-var __spreadArrays = (this && this.__spreadArrays) || function () {
-    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
-    for (var r = Array(s), k = 0, i = 0; i < il; i++)
-        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
-            r[k] = a[j];
-    return r;
+var __spreadArray = (this && this.__spreadArray) || function (to, from) {
+    for (var i = 0, il = from.length, j = to.length; i < il; i++, j++)
+        to[j] = from[i];
+    return to;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.install = exports.Unicom = void 0;
 // #id 存放id的unicom对象
 var unicomGroupByID = {};
 /**
@@ -134,7 +133,7 @@ function emitAll(self, type, target, instruct, args) {
     var uniEvent = new UnicomEvent(self, args);
     targetUnicom.forEach(function (emit) {
         // 每个都触发一遍
-        emit.emit.apply(emit, __spreadArrays([instruct, uniEvent], args));
+        emit.emit.apply(emit, __spreadArray([instruct, uniEvent], args));
     });
     return uniEvent;
 }
@@ -311,24 +310,36 @@ var Unicom = /** @class */ (function () {
 exports.Unicom = Unicom;
 // vue 安装插槽
 var unicomInstalled = false;
-function install(vue, _a) {
-    var _b, _c;
-    var _d = _a === void 0 ? {} : _a, _e = _d.name, name = _e === void 0 ? "unicom" : _e, unicomName = _d.unicomName, unicomId = _d.unicomId, unicomEmit = _d.unicomEmit, unicomClass = _d.unicomClass;
+function install(V, _a) {
+    var _b, _c, _d;
+    var _e = _a === void 0 ? {} : _a, _f = _e.name, name = _f === void 0 ? "unicom" : _f, unicomName = _e.unicomName, unicomId = _e.unicomId, unicomEmit = _e.unicomEmit, unicomClass = _e.unicomClass;
     if (unicomInstalled) {
         // 防止重复install
         return;
     }
     unicomInstalled = true;
-    // 添加原型方法
-    var unicomEmitName = unicomEmit || name;
-    vue.prototype["$" + unicomEmitName] = function (query) {
+    function uniconExe(query) {
         var _a;
         var args = [];
         for (var _i = 1; _i < arguments.length; _i++) {
             args[_i - 1] = arguments[_i];
         }
-        return (_a = this._unicom_data_.unicom).emit.apply(_a, __spreadArrays([query], args));
-    };
+        return (_a = this._unicom_data_.unicom).emit.apply(_a, __spreadArray([query], args));
+    }
+    var is3 = V.version.indexOf("3") == 0;
+    var destroyed = "destroyed";
+    // 添加原型方法
+    var unicomEmitName = unicomEmit || name;
+    if (is3) {
+        destroyed = "unmounted";
+        var vA = V;
+        vA.config.globalProperties["$" + unicomEmitName] = uniconExe;
+    }
+    else {
+        // 添加原型方法
+        var vV = V;
+        vV.prototype["$" + unicomEmitName] = uniconExe;
+    }
     // 方便插件中引入
     var VueUnicomClassName = unicomClass;
     if (!VueUnicomClassName) {
@@ -336,7 +347,7 @@ function install(vue, _a) {
             return s0.toUpperCase();
         });
     }
-    vue[VueUnicomClassName] = Unicom;
+    V[VueUnicomClassName] = Unicom;
     // unicom-id
     var unicomIdName = unicomId || name + "Id";
     // 分组  unicom-name
@@ -348,74 +359,75 @@ function install(vue, _a) {
         return unicomData.initGroup.concat(names);
     }
     // 全局混入 vue
-    vue.mixin({
-        props: (_b = {},
-            // 命名
-            _b[unicomIdName] = {
-                type: String,
-                default: ""
-            },
-            // 分组
-            _b[unicomGroupName] = {
-                type: [String, Array],
-                default: ""
-            },
-            _b),
-        watch: (_c = {},
-            _c[unicomIdName] = function (nv) {
+    V.mixin((_b = {
+            props: (_c = {},
+                // 命名
+                _c[unicomIdName] = {
+                    type: String,
+                    default: ""
+                },
+                // 分组
+                _c[unicomGroupName] = {
+                    type: [String, Array],
+                    default: ""
+                },
+                _c),
+            watch: (_d = {},
+                _d[unicomIdName] = function (nv) {
+                    var self = this;
+                    var unicom = self._unicom_data_ && self._unicom_data_.unicom;
+                    if (unicom) {
+                        unicom.setId(nv);
+                    }
+                },
+                _d[unicomGroupName] = function () {
+                    var self = this;
+                    var unicom = self._unicom_data_ && self._unicom_data_.unicom;
+                    if (unicom) {
+                        unicom.setGroup(getGroup(self));
+                    }
+                },
+                _d),
+            // 创建的时候，加入事件机制
+            beforeCreate: function () {
                 var self = this;
-                var unicom = self._unicom_data_ && self._unicom_data_.unicom;
-                if (unicom) {
-                    unicom.setId(nv);
+                // 屏蔽不需要融合的 节点
+                var isIgnore = !is3 && (!self.$vnode || /-transition$/.test(self.$vnode.tag));
+                // unicomData 数据存放
+                var unicomData = {
+                    // 不需要，忽略
+                    isIgnore: isIgnore
+                };
+                self._unicom_data_ = unicomData;
+                if (isIgnore) {
+                    return;
                 }
+                var opt = this.$options;
+                unicomData.initGroup = opt[unicomGroupName] || [];
+                unicomData.instructs = opt[name] || [];
+                // 触发器
+                // unicomData.self = new Unicom({target: this})
             },
-            _c[unicomGroupName] = function () {
+            created: function () {
                 var self = this;
-                var unicom = self._unicom_data_ && self._unicom_data_.unicom;
-                if (unicom) {
-                    unicom.setGroup(getGroup(self));
+                var unicomData = self._unicom_data_;
+                if (unicomData.isIgnore) {
+                    // 忽略
+                    return;
                 }
-            },
-            _c),
-        // 创建的时候，加入事件机制
-        beforeCreate: function () {
-            var self = this;
-            // 屏蔽不需要融合的 节点
-            var isIgnore = !self.$vnode || /-transition$/.test(self.$vnode.tag);
-            // unicomData 数据存放
-            var unicomData = {
-                // 不需要，忽略
-                isIgnore: isIgnore
-            };
-            self._unicom_data_ = unicomData;
-            if (isIgnore) {
-                return;
+                // 初始化
+                var unicom = (unicomData.unicom = new Unicom({ target: self, id: self[unicomIdName], group: getGroup(self) }));
+                // 订阅事件
+                unicomData.instructs.forEach(function (subs) {
+                    for (var n in subs) {
+                        unicom.on(n, subs[n]);
+                    }
+                });
             }
-            var opt = this.$options;
-            unicomData.initGroup = opt[unicomGroupName] || [];
-            unicomData.instructs = opt[name] || [];
-            // 触发器
-            // unicomData.self = new Unicom({target: this})
-        },
-        created: function () {
-            var self = this;
-            var unicomData = self._unicom_data_;
-            if (unicomData.isIgnore) {
-                // 忽略
-                return;
-            }
-            // 初始化
-            var unicom = (unicomData.unicom = new Unicom({ target: self, id: self[unicomIdName], group: getGroup(self) }));
-            // 订阅事件
-            unicomData.instructs.forEach(function (subs) {
-                for (var n in subs) {
-                    unicom.on(n, subs[n]);
-                }
-            });
         },
         // 全局混合， 销毁实例的时候，销毁事件
-        destroyed: function () {
-            var self = this;
+        _b[destroyed] = function () {
+            // let self = this as any
             var unicomData = this._unicom_data_;
             if (unicomData.isIgnore) {
                 // 忽略
@@ -423,10 +435,10 @@ function install(vue, _a) {
             }
             // 销毁 unicom 对象
             unicomData.unicom.destroy();
-        }
-    });
+        },
+        _b));
     // 自定义属性合并策略
-    var merge = vue.config.optionMergeStrategies;
+    var merge = V.config.optionMergeStrategies;
     merge[name] = function (parentVal, childVal) {
         var arr = parentVal || [];
         if (childVal) {

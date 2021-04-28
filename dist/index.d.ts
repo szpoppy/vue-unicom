@@ -4,6 +4,7 @@
  * [2019-07-21] 重构,以事件模型为基础,多组件之间 订阅者和发布者来制作
  */
 import { VueConstructor } from "vue";
+import { App } from "vue3";
 interface unicomArg {
     id?: string;
     group?: string | Array<string>;
@@ -35,5 +36,5 @@ interface unicomInstallArg {
     unicomEmit?: string;
     unicomClass?: string;
 }
-export declare function install(vue: VueConstructor, { name, unicomName, unicomId, unicomEmit, unicomClass }?: unicomInstallArg): void;
+export declare function install(V: VueConstructor | App, { name, unicomName, unicomId, unicomEmit, unicomClass }?: unicomInstallArg): void;
 export default Unicom;

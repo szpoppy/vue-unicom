@@ -1,8 +1,8 @@
 {
     "name": "vue-unicom",
-    "version": "2.2.0",
+    "version": "2.3.0",
     "description": "vue-unicom",
-    "main": "index.js",
+    "main": "dist/index.js",
     "scripts": {
         "build": "rm -rf ./dist && tsc"
     },
@@ -21,9 +21,13 @@
     },
     "homepage": "https://github.com/szpoppy/vue-unicom#readme",
     "dependencies": {
-        "vue": "^2.6.11"
+        "vue": "^2.6.11",
+        "vue3": "npm:vue@^3.0.11"
     },
     "devDependencies": {
-        "typescript": "^3.7.5"
+        "typescript": "^4.2.4"
+    },
+    "publishConfig": {
+        "registry": "https://registry.npmjs.org/"
     }
 }

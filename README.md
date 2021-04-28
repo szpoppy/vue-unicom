@@ -18,6 +18,7 @@
 -   [2019-07-30]重构 vue-unicom，重构后代码逻辑更清晰
 -   [2019-07-31]优化注解，修复全局订阅问题以及一些多余代码删除
 -   TS改造移动到 rimjs实现
+-   [2021-04-28]支持vue3，不支持直接全局引入
 
 ## 功能
 
@@ -114,7 +115,6 @@ unicom.monitorOff()
 ```javascript
 import Vue from 'vue'
 import VueUnicom from 'vue-unicom'
-// 非 cli 也必须 install一下
 Vue.use(VueUnicom, {
     // 制定名称， 默认为 unicom
     unicom: 'unicom'，
