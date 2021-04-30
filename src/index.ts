@@ -363,6 +363,7 @@ export class Unicom {
 let unicomInstalled: boolean = false
 // install 参数
 interface unicomInstallArg {
+    useProps?: boolean
     name?: string
     unicomName?: string
     unicomId?: string
@@ -384,7 +385,7 @@ interface vueUnicomData {
     // 绑定的unicom对象
     unicom?: Unicom
 }
-export function install(V: VueConstructor | App, { name = "unicom", unicomName, unicomId, unicomEmit, unicomClass }: unicomInstallArg = {}) {
+export function install(V: VueConstructor | App, { name = "unicom", useProps = true, unicomName, unicomId, unicomEmit, unicomClass }: unicomInstallArg = {}) {
     if (unicomInstalled) {
         // 防止重复install
         return
@@ -430,36 +431,7 @@ export function install(V: VueConstructor | App, { name = "unicom", unicomName, 
         return unicomData.initGroup.concat(names)
     }
 
-    // 全局混入 vue
-    V.mixin({
-        props: {
-            // 命名
-            [unicomIdName]: {
-                type: String,
-                default: ""
-            },
-            // 分组
-            [unicomGroupName]: {
-                type: [String, Array],
-                default: ""
-            }
-        },
-        watch: {
-            [unicomIdName](nv) {
-                let self = this as any
-                let unicom = self._unicom_data_ && self._unicom_data_.unicom
-                if (unicom) {
-                    unicom.setId(nv)
-                }
-            },
-            [unicomGroupName]() {
-                let self = this as any
-                let unicom = self._unicom_data_ && self._unicom_data_.unicom
-                if (unicom) {
-                    unicom.setGroup(getGroup(self))
-                }
-            }
-        },
+    let mixin = {
         // 创建的时候，加入事件机制
         beforeCreate() {
             let self = this as any
@@ -511,7 +483,43 @@ export function install(V: VueConstructor | App, { name = "unicom", unicomName, 
             // 销毁 unicom 对象
             unicomData.unicom.destroy()
         }
-    })
+    }
+
+    if (useProps) {
+        Object.assign(mixin, {
+            props: {
+                // 命名
+                [unicomIdName]: {
+                    type: String,
+                    default: ""
+                },
+                // 分组
+                [unicomGroupName]: {
+                    type: [String, Array],
+                    default: ""
+                }
+            },
+            watch: {
+                [unicomIdName](nv) {
+                    let self = this as any
+                    let unicom = self._unicom_data_ && self._unicom_data_.unicom
+                    if (unicom) {
+                        unicom.setId(nv)
+                    }
+                },
+                [unicomGroupName]() {
+                    let self = this as any
+                    let unicom = self._unicom_data_ && self._unicom_data_.unicom
+                    if (unicom) {
+                        unicom.setGroup(getGroup(self))
+                    }
+                }
+            }
+        })
+    }
+
+    // 全局混入 vue
+    V.mixin(mixin)
 
     // 自定义属性合并策略
     let merge = V.config.optionMergeStrategies

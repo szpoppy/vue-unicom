@@ -116,8 +116,10 @@ unicom.monitorOff()
 import Vue from 'vue'
 import VueUnicom from 'vue-unicom'
 Vue.use(VueUnicom, {
+    // 默认为true，有时全局加入props参数会导致异常，比如 ant-design
+    useProps: false,
     // 制定名称， 默认为 unicom
-    unicom: 'unicom'，
+    name: 'unicom'，
     // 定制分组使用名称 默认为 unicom + 'Name'
     unicomName: 'unicomName',
     // 定制id使用名称 默认为 unicom + 'Id'

@@ -30,11 +30,12 @@ export declare class Unicom {
     emit(query: string, ...args: any): any;
 }
 interface unicomInstallArg {
+    useProps?: boolean;
     name?: string;
     unicomName?: string;
     unicomId?: string;
     unicomEmit?: string;
     unicomClass?: string;
 }
-export declare function install(V: VueConstructor | App, { name, unicomName, unicomId, unicomEmit, unicomClass }?: unicomInstallArg): void;
+export declare function install(V: VueConstructor | App, { name, useProps, unicomName, unicomId, unicomEmit, unicomClass }?: unicomInstallArg): void;
 export default Unicom;

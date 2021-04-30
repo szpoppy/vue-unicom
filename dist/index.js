@@ -312,7 +312,7 @@ exports.Unicom = Unicom;
 var unicomInstalled = false;
 function install(V, _a) {
     var _b, _c, _d;
-    var _e = _a === void 0 ? {} : _a, _f = _e.name, name = _f === void 0 ? "unicom" : _f, unicomName = _e.unicomName, unicomId = _e.unicomId, unicomEmit = _e.unicomEmit, unicomClass = _e.unicomClass;
+    var _e = _a === void 0 ? {} : _a, _f = _e.name, name = _f === void 0 ? "unicom" : _f, _g = _e.useProps, useProps = _g === void 0 ? true : _g, unicomName = _e.unicomName, unicomId = _e.unicomId, unicomEmit = _e.unicomEmit, unicomClass = _e.unicomClass;
     if (unicomInstalled) {
         // 防止重复install
         return;
@@ -358,36 +358,7 @@ function install(V, _a) {
         var names = target[unicomGroupName] || [];
         return unicomData.initGroup.concat(names);
     }
-    // 全局混入 vue
-    V.mixin((_b = {
-            props: (_c = {},
-                // 命名
-                _c[unicomIdName] = {
-                    type: String,
-                    default: ""
-                },
-                // 分组
-                _c[unicomGroupName] = {
-                    type: [String, Array],
-                    default: ""
-                },
-                _c),
-            watch: (_d = {},
-                _d[unicomIdName] = function (nv) {
-                    var self = this;
-                    var unicom = self._unicom_data_ && self._unicom_data_.unicom;
-                    if (unicom) {
-                        unicom.setId(nv);
-                    }
-                },
-                _d[unicomGroupName] = function () {
-                    var self = this;
-                    var unicom = self._unicom_data_ && self._unicom_data_.unicom;
-                    if (unicom) {
-                        unicom.setGroup(getGroup(self));
-                    }
-                },
-                _d),
+    var mixin = (_b = {
             // 创建的时候，加入事件机制
             beforeCreate: function () {
                 var self = this;
@@ -436,7 +407,41 @@ function install(V, _a) {
             // 销毁 unicom 对象
             unicomData.unicom.destroy();
         },
-        _b));
+        _b);
+    if (useProps) {
+        Object.assign(mixin, {
+            props: (_c = {},
+                // 命名
+                _c[unicomIdName] = {
+                    type: String,
+                    default: ""
+                },
+                // 分组
+                _c[unicomGroupName] = {
+                    type: [String, Array],
+                    default: ""
+                },
+                _c),
+            watch: (_d = {},
+                _d[unicomIdName] = function (nv) {
+                    var self = this;
+                    var unicom = self._unicom_data_ && self._unicom_data_.unicom;
+                    if (unicom) {
+                        unicom.setId(nv);
+                    }
+                },
+                _d[unicomGroupName] = function () {
+                    var self = this;
+                    var unicom = self._unicom_data_ && self._unicom_data_.unicom;
+                    if (unicom) {
+                        unicom.setGroup(getGroup(self));
+                    }
+                },
+                _d)
+        });
+    }
+    // 全局混入 vue
+    V.mixin(mixin);
     // 自定义属性合并策略
     var merge = V.config.optionMergeStrategies;
     merge[name] = function (parentVal, childVal) {
